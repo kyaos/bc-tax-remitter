@@ -1,0 +1,904 @@
+<title>BC Monthly Tax Remitter</title>
+<style>
+  :root {
+    --ground: #f4f6f4;
+    --card: #ffffff;
+    --ink: #1b2420;
+    --ink-soft: #56645d;
+    --line: #dde4e0;
+    --accent: #1f6b4e;
+    --accent-ink: #ffffff;
+    --field: #ffffff;
+    --field-line: #c3cec8;
+    --result-ground: #16332727;
+    --danger: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #131817;
+      --card: #1c2321;
+      --ink: #e7ece9;
+      --ink-soft: #9caba3;
+      --line: #2c3531;
+      --accent: #4fb388;
+      --accent-ink: #0e1a15;
+      --field: #161d1b;
+      --field-line: #3a4641;
+      --result-ground: #4fb3881f;
+      --danger: #ff6b5e;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #f4f6f4;
+    --card: #ffffff;
+    --ink: #1b2420;
+    --ink-soft: #56645d;
+    --line: #dde4e0;
+    --accent: #1f6b4e;
+    --accent-ink: #ffffff;
+    --field: #ffffff;
+    --field-line: #c3cec8;
+    --result-ground: #16332727;
+    --danger: #b3261e;
+  }
+  :root[data-theme="dark"] {
+    --ground: #131817;
+    --card: #1c2321;
+    --ink: #e7ece9;
+    --ink-soft: #9caba3;
+    --line: #2c3531;
+    --accent: #4fb388;
+    --accent-ink: #0e1a15;
+    --field: #161d1b;
+    --field-line: #3a4641;
+    --result-ground: #4fb3881f;
+    --danger: #ff6b5e;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 27rem;
+    margin: 0 auto;
+    padding: 1.25rem 1rem 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  header.app { padding: 0.5rem 0.25rem 0.25rem; }
+  header.app h1 {
+    margin: 0;
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  header.app .sub {
+    margin: 0.3rem 0 0;
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+    margin-left: 0.5rem;
+    vertical-align: 0.15em;
+  }
+
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1rem;
+  }
+  section.card h2 {
+    margin: 0 0 0.15rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  section.card .hint {
+    margin: 0 0 0.75rem;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+
+  .rows { display: flex; flex-direction: column; gap: 0.6rem; }
+  .job-row { display: flex; gap: 0.5rem; align-items: center; }
+  .job-row .name { flex: 1 1 45%; min-width: 0; }
+  .job-row .amt-wrap { flex: 1 1 55%; }
+
+  .amt-wrap { position: relative; }
+  .amt-wrap .cur {
+    position: absolute;
+    left: 0.7rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    pointer-events: none;
+  }
+  .amt-wrap input { padding-left: 1.65rem; }
+
+  input[type="text"] {
+    width: 100%;
+    font: inherit;
+    font-size: 1rem;
+    color: var(--ink);
+    background: var(--field);
+    border: 1px solid var(--field-line);
+    border-radius: 10px;
+    padding: 0.65rem 0.7rem;
+    min-height: 44px;
+  }
+  input.amount { text-align: right; font-variant-numeric: tabular-nums; }
+  input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: var(--accent);
+  }
+  input::placeholder { color: var(--ink-soft); opacity: 0.7; }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+    min-height: 44px;
+    border-radius: 10px;
+  }
+  .remove {
+    flex: 0 0 auto;
+    width: 40px;
+    min-height: 44px;
+    border: none;
+    background: none;
+    color: var(--ink-soft);
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+  .remove:focus-visible { outline: 2px solid var(--accent); }
+  .add-job {
+    margin-top: 0.75rem;
+    width: 100%;
+    background: none;
+    border: 1px dashed var(--field-line);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 0.6rem;
+  }
+  .add-job:focus-visible { outline: 2px solid var(--accent); }
+
+  section.result {
+    background: var(--result-ground);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 1.1rem 1rem 1rem;
+  }
+  section.result h2 {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+  }
+  .remit {
+    font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    margin: 0.1rem 0 0.75rem;
+    line-height: 1.1;
+  }
+
+  table.breakdown {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  table.breakdown td {
+    padding: 0.38rem 0;
+    border-top: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.breakdown td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    padding-left: 0.75rem;
+  }
+  table.breakdown tr.total td {
+    font-weight: 700;
+    border-top: 2px solid var(--accent);
+  }
+  table.breakdown td .note { color: var(--ink-soft); font-size: 0.78rem; display: block; }
+
+  p.disclaimer {
+    margin: 0;
+    padding: 0 0.25rem;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+  }
+  p.selftest {
+    margin: 0.35rem 0 0;
+    padding: 0 0.25rem;
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+  }
+  p.selftest.fail { color: var(--danger); font-weight: 600; }
+
+  .save-btn {
+    width: 100%;
+    margin-top: 0.6rem;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.65rem;
+  }
+  .save-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .history-actions { display: flex; gap: 0.5rem; margin-top: 0.85rem; }
+  .ghost-btn {
+    flex: 1;
+    background: none;
+    border: 1px solid var(--field-line);
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.7rem;
+  }
+  .ghost-btn.danger { color: var(--danger); border-color: var(--danger); }
+  .ghost-btn:focus-visible { outline: 2px solid var(--accent); }
+  .ghost-btn.small { flex: none; min-height: 36px; font-size: 0.78rem; padding: 0.4rem 0.65rem; margin-top: 0.6rem; }
+
+  p.empty { margin: 0; font-size: 0.85rem; color: var(--ink-soft); }
+  .count { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ink-soft); }
+
+  details.hist-item { border-top: 1px solid var(--line); padding: 0.55rem 0; }
+  details.hist-item:first-of-type { border-top: none; padding-top: 0; }
+  details.hist-item summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    list-style: none;
+    font-size: 0.92rem;
+    min-height: 32px;
+  }
+  details.hist-item summary::-webkit-details-marker { display: none; }
+  .hist-label { display: flex; align-items: center; gap: 0.35rem; font-weight: 600; min-width: 0; }
+  .hist-label .chev {
+    display: inline-block;
+    color: var(--ink-soft);
+    transition: transform 0.15s ease;
+    font-weight: 400;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hist-label .chev { transition: none; }
+  }
+  details[open] .chev { transform: rotate(90deg); }
+  .hist-remit { flex: 0 0 auto; font-variant-numeric: tabular-nums; color: var(--ink-soft); font-size: 0.85rem; }
+  .hist-body { padding-top: 0.4rem; }
+  .hist-body table.breakdown { font-size: 0.84rem; }
+  .hist-meta { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--ink-soft); }
+
+  p.toast {
+    min-height: 1.1rem;
+    margin: 0.6rem 0 0;
+    font-size: 0.8rem;
+    color: var(--accent);
+  }
+  p.toast .undo {
+    margin-left: 0.4rem;
+    background: none;
+    border: none;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    min-height: auto;
+  }
+
+  .print-btn {
+    width: 100%;
+    margin-top: 0.75rem;
+    background: none;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.6rem;
+  }
+  .print-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .print-btn.small { width: auto; margin-top: 0.6rem; }
+  p.print-hint { margin: 0.4rem 0 0; font-size: 0.72rem; }
+
+  .print-only { display: none; }
+
+  @media print {
+    body * { visibility: hidden; }
+    .print-only, .print-only * { visibility: visible; }
+    .print-only {
+      display: block;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      padding: 0.4in;
+      color: #000;
+      background: #fff;
+    }
+    .print-only h1 { margin: 0 0 0.1rem; font-size: 1.25rem; }
+    .print-only .meta { margin: 0 0 1rem; font-size: 0.85rem; color: #444; }
+    .print-only table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    .print-only td { padding: 0.32rem 0; border-top: 1px solid #ccc; }
+    .print-only td.num { text-align: right; }
+    .print-only tr.total td { font-weight: 700; border-top: 2px solid #000; }
+    .print-only .disclaimer { margin-top: 1rem; font-size: 0.72rem; color: #555; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="app">
+    <h1>BC Monthly Tax Remitter<span class="badge">2026</span></h1>
+    <p class="sub">Estimate how much to set aside and remit to CRA this month.</p>
+  </header>
+
+  <section class="card">
+    <h2>Employment income</h2>
+    <p class="hint">Gross pay this month from each job, before deductions.</p>
+    <div class="rows" id="jobRows"></div>
+    <button type="button" class="add-job" id="addJob">+ Add another job</button>
+  </section>
+
+  <section class="card">
+    <h2>Self-employment income</h2>
+    <p class="hint">Total self-employed earnings this month.</p>
+    <div class="amt-wrap">
+      <span class="cur">$</span>
+      <input type="text" class="amount" id="seIncome" inputmode="decimal" placeholder="0" aria-label="Self-employment income this month">
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Tax deducted by employers</h2>
+    <p class="hint">Total income tax withheld on this month&rsquo;s pay stubs.</p>
+    <div class="amt-wrap">
+      <span class="cur">$</span>
+      <input type="text" class="amount" id="taxWithheld" inputmode="decimal" placeholder="0" aria-label="Tax deducted by employers this month">
+    </div>
+  </section>
+
+  <section class="result" aria-live="polite">
+    <h2>Estimated amount to remit this month</h2>
+    <p class="remit" id="remitAmt">$0</p>
+    <table class="breakdown">
+      <tbody>
+        <tr><td>Total monthly income</td><td class="num" id="rowMonthly">$0</td></tr>
+        <tr><td>Annualized income<span class="note">monthly &times; 12</span></td><td class="num" id="rowAnnual">$0</td></tr>
+        <tr><td>Taxable income<span class="note">annual, after CPP deductions</span></td><td class="num" id="rowTaxable">$0</td></tr>
+        <tr><td>Federal income tax<span class="note">annual, after personal, CPP, EI &amp; employment credits</span></td><td class="num" id="rowFed">$0</td></tr>
+        <tr><td>BC income tax<span class="note">annual, after credits &amp; BC tax reduction</span></td><td class="num" id="rowBc">$0</td></tr>
+        <tr><td>Self-employed CPP<span class="note">annual, both halves incl. CPP2</span></td><td class="num" id="rowCpp">$0</td></tr>
+        <tr><td>Monthly tax + CPP requirement<span class="note">(fed + BC tax + CPP) &divide; 12</span></td><td class="num" id="rowMonthlyReq">$0</td></tr>
+        <tr><td>Less employer tax withheld</td><td class="num" id="rowWithheld">&minus;$0</td></tr>
+        <tr class="total"><td>Suggested CRA remittance</td><td class="num" id="rowRemit">$0</td></tr>
+      </tbody>
+    </table>
+    <button type="button" class="print-btn" id="printBtn">Save as PDF</button>
+    <p class="hint print-hint">Opens your phone&rsquo;s print screen. Pinch the preview to see the full page, then tap the share icon and choose &ldquo;Save to Files&rdquo; &mdash; pick iCloud Drive if you want it backed up there.</p>
+  </section>
+
+  <section class="card">
+    <h2>Save to history</h2>
+    <p class="hint" id="saveHint">Label this month, then save a snapshot for your records.</p>
+    <input type="text" id="monthLabel" placeholder="e.g. August 2026" aria-label="Month label">
+    <button type="button" class="save-btn" id="saveBtn">Save this month to history</button>
+  </section>
+
+  <section class="card">
+    <h2>History<span class="count" id="historyCount"></span></h2>
+    <p class="hint">Saved months stay on this device only &mdash; nothing is uploaded. Add this page to your Home Screen so the browser keeps it long-term, and tap &ldquo;Export backup&rdquo; now and then &mdash; the backup file can be re-imported on any device.</p>
+    <p class="empty" id="historyEmpty">No months saved yet.</p>
+    <div id="historyList"></div>
+    <div class="history-actions" id="historyActions" hidden>
+      <button type="button" class="ghost-btn" id="copyBtn">Copy as text</button>
+      <button type="button" class="ghost-btn danger" id="clearBtn">Clear all</button>
+    </div>
+    <div class="history-actions">
+      <button type="button" class="ghost-btn" id="exportBtn">Export backup</button>
+      <button type="button" class="ghost-btn" id="importBtn">Import backup</button>
+    </div>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <p class="toast" id="toast" aria-live="polite"></p>
+  </section>
+
+  <p class="disclaimer">Estimate only. This calculator annualizes the current month&rsquo;s income and applies 2026 federal and BC tax rules (basic personal amounts, CPP/EI credits, Canada employment amount, CPP deductions, and the BC tax reduction). It assumes no other income, deductions, or credits. Your actual tax liability may differ.</p>
+  <p class="selftest" id="selftest"></p>
+
+  <div id="printView" class="print-only" aria-hidden="true"></div>
+</div>
+
+<script>
+  // ---- 2026 enacted figures (verified against CRA / BC gov / BC Budget 2026). Update once per tax year. ----
+  const CONFIG = {
+    fed: {
+      brackets: [
+        { upTo: 58523,    rate: 0.14  },
+        { upTo: 117045,   rate: 0.205 },
+        { upTo: 181440,   rate: 0.26  },
+        { upTo: 258482,   rate: 0.29  },
+        { upTo: Infinity, rate: 0.33  }
+      ],
+      creditRate: 0.14,
+      bpaMax: 16452, bpaMin: 14829,          // BPA phases down over the 4th bracket
+      bpaPhaseStart: 181440, bpaPhaseEnd: 258482,
+      cea: 1501                               // Canada employment amount
+    },
+    bc: {
+      brackets: [
+        { upTo: 50363,    rate: 0.056  },
+        { upTo: 100728,   rate: 0.077  },
+        { upTo: 115648,   rate: 0.105  },
+        { upTo: 140430,   rate: 0.1229 },
+        { upTo: 190405,   rate: 0.147  },
+        { upTo: 265545,   rate: 0.168  },
+        { upTo: Infinity, rate: 0.205  }
+      ],
+      creditRate: 0.056,                      // raised from 5.06% in BC Budget 2026
+      bpa: 13216,
+      reduction: { max: 690, threshold: 25570, rate: 0.0356 }  // BC tax reduction
+    },
+    cpp: {
+      exemption: 3500, ympe: 74600, yampe: 85000,
+      empRate: 0.0595, creditRate: 0.0495, enhRate: 0.01,      // employee: 4.95% credited, 1% deducted
+      empCpp2Rate: 0.04,
+      seRate: 0.119, seCpp2Rate: 0.08                          // self-employed: both halves
+    },
+    ei: { rate: 0.0163, mie: 68900 }
+  };
+
+  const fmt = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 });
+  const num = v => {
+    const n = parseFloat(String(v).replace(/[,$\s]/g, ''));
+    return isFinite(n) && n > 0 ? n : 0;
+  };
+
+  function bracketTax(income, brackets) {
+    let tax = 0, prev = 0;
+    for (const b of brackets) {
+      if (income <= prev) break;
+      tax += (Math.min(income, b.upTo) - prev) * b.rate;
+      prev = b.upTo;
+    }
+    return tax;
+  }
+
+  // Full annual calculation. E = employment income, S = self-employment income (both annual).
+  function calcAnnual(E, S) {
+    const c = CONFIG, p = c.cpp;
+
+    // Employee CPP: base portion (4.95%) is a credit, enhanced portion (1%) is a deduction,
+    // CPP2 (4% between YMPE and YAMPE) is a deduction.
+    const empBaseCont = Math.max(0, Math.min(E, p.ympe) - p.exemption);
+    const empCppCredit = empBaseCont * p.creditRate;
+    const empCppDeduct = empBaseCont * p.enhRate;
+    const empCpp2 = Math.max(0, Math.min(E, p.yampe) - p.ympe) * p.empCpp2Rate;
+
+    // Self-employed CPP: one shared $3,500 exemption and YMPE/YAMPE ceilings across
+    // employment + self-employment; SE only gets the room employment hasn't used.
+    const totalBaseCont = Math.max(0, Math.min(E + S, p.ympe) - p.exemption);
+    const seBaseCont = Math.max(0, totalBaseCont - empBaseCont);
+    const seBase = seBaseCont * p.seRate;
+    const totalCpp2Earn = Math.max(0, Math.min(E + S, p.yampe) - p.ympe);
+    const empCpp2Earn = Math.max(0, Math.min(E, p.yampe) - p.ympe);
+    const seCpp2 = Math.max(0, totalCpp2Earn - empCpp2Earn) * p.seCpp2Rate;
+    const cpp = seBase + seCpp2;                                  // what the user must remit
+    const seCppDeduct = seBase / 2 + seBaseCont * p.enhRate + seCpp2;  // employer half + enhanced + CPP2
+    const seCppCredit = seBaseCont * p.creditRate;                // 4.95% base portion
+
+    // EI on employment income (self-employed EI is optional opt-in; not assumed).
+    const ei = Math.min(E, c.ei.mie) * c.ei.rate;
+
+    // Taxable income (also used as net income for the BC tax reduction).
+    const taxable = Math.max(0, E + S - empCppDeduct - empCpp2 - seCppDeduct);
+
+    // Federal: BPA phases from bpaMax down to bpaMin across the 4th bracket.
+    let fedBpa = c.fed.bpaMax;
+    if (taxable > c.fed.bpaPhaseStart) {
+      const f = Math.min(1, (taxable - c.fed.bpaPhaseStart) / (c.fed.bpaPhaseEnd - c.fed.bpaPhaseStart));
+      fedBpa = c.fed.bpaMax - f * (c.fed.bpaMax - c.fed.bpaMin);
+    }
+    const cea = Math.min(E, c.fed.cea);
+    const fedCredits = (fedBpa + empCppCredit + seCppCredit + ei + cea) * c.fed.creditRate;
+    const fedTax = Math.max(0, bracketTax(taxable, c.fed.brackets) - fedCredits);
+
+    // BC: credits at 5.6%, then the BC tax reduction (phased out at 3.56% above the threshold).
+    const bcCredits = (c.bc.bpa + empCppCredit + seCppCredit + ei) * c.bc.creditRate;
+    const bcBeforeReduction = Math.max(0, bracketTax(taxable, c.bc.brackets) - bcCredits);
+    const r = c.bc.reduction;
+    const reduction = Math.max(0, r.max - Math.max(0, taxable - r.threshold) * r.rate);
+    const bcTax = Math.max(0, bcBeforeReduction - reduction);
+
+    return { taxable, fedTax, bcTax, tax: fedTax + bcTax, cpp };
+  }
+
+  const $ = id => document.getElementById(id);
+  const jobRows = $('jobRows');
+
+  function addJobRow() {
+    const row = document.createElement('div');
+    row.className = 'job-row';
+    row.innerHTML =
+      '<input type="text" class="name" placeholder="Job name (optional)" aria-label="Job name">' +
+      '<div class="amt-wrap"><span class="cur">$</span>' +
+      '<input type="text" class="amount job-amt" inputmode="decimal" placeholder="0" aria-label="Gross monthly income for this job"></div>' +
+      '<button type="button" class="remove" aria-label="Remove this job">&times;</button>';
+    row.querySelector('.remove').addEventListener('click', () => { row.remove(); recalc(); });
+    jobRows.appendChild(row);
+  }
+
+  function currentSnapshot() {
+    let employment = 0;
+    document.querySelectorAll('.job-amt').forEach(i => employment += num(i.value));
+    const se = num($('seIncome').value);
+    const withheld = num($('taxWithheld').value);
+
+    const monthly = employment + se;
+    const annual = monthly * 12;
+    const a = calcAnnual(employment * 12, se * 12);
+    const monthlyReq = (a.tax + a.cpp) / 12;
+    const remit = Math.max(0, monthlyReq - withheld);
+    return {
+      employment, se, withheld, monthly, annual,
+      taxable: a.taxable, fedTax: a.fedTax, bcTax: a.bcTax,
+      tax: a.tax, cpp: a.cpp, monthlyReq, remit
+    };
+  }
+
+  function recalc() {
+    const s = currentSnapshot();
+    $('rowMonthly').textContent = fmt.format(s.monthly);
+    $('rowAnnual').textContent = fmt.format(s.annual);
+    $('rowTaxable').textContent = fmt.format(s.taxable);
+    $('rowFed').textContent = fmt.format(s.fedTax);
+    $('rowBc').textContent = fmt.format(s.bcTax);
+    $('rowCpp').textContent = fmt.format(s.cpp);
+    $('rowMonthlyReq').textContent = fmt.format(s.monthlyReq);
+    $('rowWithheld').textContent = String.fromCharCode(8722) + fmt.format(s.withheld);
+    $('rowRemit').textContent = fmt.format(s.remit);
+    $('remitAmt').textContent = fmt.format(s.remit);
+  }
+
+  // ---- Engine self-test: golden cases hand-computed from enacted 2026 rules. ----
+  // Annual figures. Expected values audited line-by-line (see calibration notes).
+  const GOLDEN = [
+    { name: '$18k employment only',        E: 18000,  S: 0,     fed: 0,        bc: 0,        cpp: 0       },
+    { name: '$12k employment (below BPA)', E: 12000,  S: 0,     fed: 0,        bc: 0,        cpp: 0       },
+    { name: '$40k employment (BC reduction phase-out)', E: 40000, S: 0, fed: 2691.26, bc: 1152.49, cpp: 0 },
+    { name: '$18k emp + $60k self-emp',    E: 18000,  S: 60000, fed: 8246.89,  bc: 3659.76,  cpp: 7007.40 },
+    { name: '$96k self-emp only',          E: 0,      S: 96000, fed: 11896.45, bc: 4952.64,  cpp: 9292.90 },
+    { name: '$200k employment (BPA phase-out, CPP2, EI max)', E: 200000, S: 0, fed: 38876.54, bc: 19079.61, cpp: 0 }
+  ];
+
+  function runSelfTest() {
+    const failures = [];
+    for (const g of GOLDEN) {
+      const r = calcAnnual(g.E, g.S);
+      const bad = [];
+      if (Math.abs(r.fedTax - g.fed) > 1) bad.push('fed ' + r.fedTax.toFixed(2) + ' vs ' + g.fed);
+      if (Math.abs(r.bcTax - g.bc) > 1) bad.push('BC ' + r.bcTax.toFixed(2) + ' vs ' + g.bc);
+      if (Math.abs(r.cpp - g.cpp) > 1) bad.push('CPP ' + r.cpp.toFixed(2) + ' vs ' + g.cpp);
+      if (bad.length) failures.push(g.name + ': ' + bad.join(', '));
+    }
+    const el = $('selftest');
+    if (failures.length) {
+      el.textContent = 'Engine self-check FAILED (' + failures.length + '/' + GOLDEN.length + '): ' + failures.join(' | ');
+      el.classList.add('fail');
+    } else {
+      el.textContent = 'Engine self-check: ' + GOLDEN.length + '/' + GOLDEN.length + ' golden cases passed (2026 rules).';
+    }
+  }
+
+  // ---- History (saved on-device via localStorage; nothing leaves the phone) ----
+  const HIST_KEY = 'bcTaxRemitterHistory_v1';
+  let history = [];
+  let storageOK = true;
+  try {
+    const raw = localStorage.getItem(HIST_KEY);
+    history = raw ? JSON.parse(raw) : [];
+  } catch (e) { storageOK = false; history = []; }
+
+  if (!storageOK) {
+    $('saveHint').textContent = "Private/incognito browsing is blocking on-device storage, so saved months won't persist after you close this page.";
+  }
+
+  function persistHistory() {
+    if (!storageOK) return;
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(history)); }
+    catch (e) { storageOK = false; showToast('History could not be saved on this device (storage full or blocked).'); }
+  }
+
+  function defaultLabel() {
+    return new Date().toLocaleString('en-CA', { month: 'long', year: 'numeric' });
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  let toastTimer = null;
+  function showToast(msg, undoFn) {
+    const t = $('toast');
+    clearTimeout(toastTimer);
+    t.textContent = msg;
+    if (undoFn) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'undo';
+      btn.textContent = 'Undo';
+      btn.addEventListener('click', () => { undoFn(); t.textContent = ''; clearTimeout(toastTimer); });
+      t.appendChild(btn);
+    }
+    toastTimer = setTimeout(() => { t.textContent = ''; }, 6000);
+  }
+
+  // Older saved entries have only a combined `tax`; newer ones also carry fedTax/bcTax/taxable.
+  function taxRowsHtml(h) {
+    let rows = '';
+    if (typeof h.taxable === 'number') {
+      rows += '<tr><td>Taxable income</td><td class="num">' + fmt.format(h.taxable) + '</td></tr>';
+    }
+    if (typeof h.fedTax === 'number' && typeof h.bcTax === 'number') {
+      rows += '<tr><td>Federal income tax</td><td class="num">' + fmt.format(h.fedTax) + '</td></tr>' +
+              '<tr><td>BC income tax</td><td class="num">' + fmt.format(h.bcTax) + '</td></tr>';
+    } else {
+      rows += '<tr><td>Estimated federal + BC income tax</td><td class="num">' + fmt.format(h.tax) + '</td></tr>';
+    }
+    return rows;
+  }
+
+  function renderHistory() {
+    const list = $('historyList');
+    const empty = $('historyEmpty');
+    const actions = $('historyActions');
+    $('historyCount').textContent = history.length ? ' (' + history.length + ')' : '';
+
+    if (!history.length) {
+      list.innerHTML = '';
+      empty.hidden = false;
+      actions.hidden = true;
+      return;
+    }
+    empty.hidden = true;
+    actions.hidden = false;
+
+    list.innerHTML = history.map(h => {
+      const dateStr = new Date(h.savedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+      return '<details class="hist-item">' +
+        '<summary>' +
+          '<span class="hist-label"><span class="chev">&rsaquo;</span>' + escapeHtml(h.label) + '</span>' +
+          '<span class="hist-remit">' + fmt.format(h.remit) + '/mo</span>' +
+        '</summary>' +
+        '<div class="hist-body">' +
+          '<table class="breakdown"><tbody>' +
+            '<tr><td>Total monthly income</td><td class="num">' + fmt.format(h.monthly) + '</td></tr>' +
+            '<tr><td>Annualized income</td><td class="num">' + fmt.format(h.annual) + '</td></tr>' +
+            taxRowsHtml(h) +
+            '<tr><td>Self-employed CPP</td><td class="num">' + fmt.format(h.cpp) + '</td></tr>' +
+            '<tr><td>Less employer tax withheld</td><td class="num">' + String.fromCharCode(8722) + fmt.format(h.withheld) + '</td></tr>' +
+            '<tr class="total"><td>Suggested remittance</td><td class="num">' + fmt.format(h.remit) + '</td></tr>' +
+          '</tbody></table>' +
+          '<p class="hist-meta">Saved ' + dateStr + '</p>' +
+          '<button type="button" class="print-btn small print-entry" data-id="' + h.id + '">Save as PDF</button>' +
+          '<button type="button" class="ghost-btn danger small delete-entry" data-id="' + h.id + '">Delete this entry</button>' +
+        '</div>' +
+      '</details>';
+    }).join('');
+  }
+
+  function historyText() {
+    if (!history.length) return 'No history saved yet.';
+    return history.map(h => {
+      const dateStr = new Date(h.savedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+      let taxLines;
+      if (typeof h.fedTax === 'number' && typeof h.bcTax === 'number') {
+        taxLines = '  Federal income tax: ' + fmt.format(h.fedTax) + '\n' +
+                   '  BC income tax: ' + fmt.format(h.bcTax);
+      } else {
+        taxLines = '  Estimated income tax: ' + fmt.format(h.tax);
+      }
+      return h.label + ' (saved ' + dateStr + ')\n' +
+        '  Total monthly income: ' + fmt.format(h.monthly) + '\n' +
+        '  Annualized income: ' + fmt.format(h.annual) + '\n' +
+        taxLines + '\n' +
+        '  Estimated self-employed CPP: ' + fmt.format(h.cpp) + '\n' +
+        '  Tax withheld by employers: ' + fmt.format(h.withheld) + '\n' +
+        '  Suggested CRA remittance: ' + fmt.format(h.remit);
+    }).join('\n\n');
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      document.body.removeChild(ta);
+      return ok;
+    }
+  }
+
+  function printSnapshot(s, label, dateStr) {
+    const metaLine = dateStr
+      ? 'Saved ' + dateStr
+      : 'Printed ' + new Date().toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+    let taxRows;
+    if (typeof s.fedTax === 'number' && typeof s.bcTax === 'number') {
+      taxRows = '<tr><td>Federal income tax</td><td class="num">' + fmt.format(s.fedTax) + '</td></tr>' +
+                '<tr><td>BC income tax</td><td class="num">' + fmt.format(s.bcTax) + '</td></tr>';
+    } else {
+      taxRows = '<tr><td>Estimated federal + BC income tax</td><td class="num">' + fmt.format(s.tax) + '</td></tr>';
+    }
+    $('printView').innerHTML =
+      '<h1>BC Monthly Tax Remitter</h1>' +
+      '<p class="meta">' + escapeHtml(label) + ' &middot; ' + metaLine + '</p>' +
+      '<table><tbody>' +
+        '<tr><td>Total monthly income</td><td class="num">' + fmt.format(s.monthly) + '</td></tr>' +
+        '<tr><td>Annualized income</td><td class="num">' + fmt.format(s.annual) + '</td></tr>' +
+        (typeof s.taxable === 'number' ? '<tr><td>Taxable income</td><td class="num">' + fmt.format(s.taxable) + '</td></tr>' : '') +
+        taxRows +
+        '<tr><td>Self-employed CPP</td><td class="num">' + fmt.format(s.cpp) + '</td></tr>' +
+        '<tr><td>Less employer tax withheld</td><td class="num">' + String.fromCharCode(8722) + fmt.format(s.withheld) + '</td></tr>' +
+        '<tr class="total"><td>Suggested CRA remittance</td><td class="num">' + fmt.format(s.remit) + '</td></tr>' +
+      '</tbody></table>' +
+      '<p class="disclaimer">Estimate only. Annualizes this month\'s income and applies 2026 federal and BC tax rules (personal, CPP, EI and employment credits, CPP deductions, BC tax reduction). Actual tax liability may differ.</p>';
+    window.print();
+  }
+
+  $('printBtn').addEventListener('click', () => {
+    const s = currentSnapshot();
+    const label = $('monthLabel').value.trim() || defaultLabel();
+    printSnapshot(s, label, null);
+  });
+
+  $('saveBtn').addEventListener('click', () => {
+    const s = currentSnapshot();
+    const label = $('monthLabel').value.trim() || defaultLabel();
+    const entry = Object.assign(
+      { id: 'h' + Date.now() + Math.random().toString(36).slice(2, 7), label, savedAt: new Date().toISOString() },
+      s
+    );
+    history.unshift(entry);
+    persistHistory();
+    renderHistory();
+    showToast('Saved "' + label + '" to history.');
+  });
+
+  $('historyList').addEventListener('click', (e) => {
+    const printBtn = e.target.closest('.print-entry');
+    if (printBtn) {
+      const h = history.find(x => x.id === printBtn.dataset.id);
+      if (h) {
+        const dateStr = new Date(h.savedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+        printSnapshot(h, h.label, dateStr);
+      }
+      return;
+    }
+    const btn = e.target.closest('.delete-entry');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const idx = history.findIndex(h => h.id === id);
+    if (idx === -1) return;
+    const removed = history[idx];
+    history.splice(idx, 1);
+    persistHistory();
+    renderHistory();
+    showToast('Deleted "' + removed.label + '".', () => {
+      history.splice(idx, 0, removed);
+      persistHistory();
+      renderHistory();
+    });
+  });
+
+  $('clearBtn').addEventListener('click', () => {
+    if (!history.length) return;
+    const backup = history.slice();
+    history = [];
+    persistHistory();
+    renderHistory();
+    showToast('Cleared ' + backup.length + ' saved month(s).', () => {
+      history = backup;
+      persistHistory();
+      renderHistory();
+    });
+  });
+
+  $('copyBtn').addEventListener('click', async () => {
+    const ok = await copyText(historyText());
+    showToast(ok ? 'Copied history to clipboard.' : "Couldn't copy automatically - select and copy manually.");
+  });
+
+  // ---- Backup: export/import history as a JSON file ----
+  $('exportBtn').addEventListener('click', () => {
+    if (!history.length) { showToast('No history to export yet.'); return; }
+    const data = { app: 'bc-tax-remitter', version: 1, exportedAt: new Date().toISOString(), history };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bc-tax-history-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Backup exported (' + history.length + ' month(s)).');
+  });
+
+  $('importBtn').addEventListener('click', () => $('importFile').click());
+
+  $('importFile').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        const list = Array.isArray(data) ? data : (data && Array.isArray(data.history) ? data.history : null);
+        if (!list) throw new Error('bad format');
+        const valid = list.filter(h => h && typeof h === 'object' && typeof h.label === 'string' && typeof h.remit === 'number');
+        valid.forEach(h => { if (!h.id) h.id = 'h' + Date.now() + Math.random().toString(36).slice(2, 7); });
+        const existing = new Set(history.map(h => h.id));
+        const added = valid.filter(h => !existing.has(h.id));
+        if (!added.length) { showToast('Nothing new to import - all entries are already in history.'); return; }
+        history = history.concat(added).sort((a, b) => new Date(b.savedAt || 0) - new Date(a.savedAt || 0));
+        persistHistory();
+        renderHistory();
+        showToast('Imported ' + added.length + ' month(s) from backup.');
+      } catch (err) {
+        showToast("Couldn't read that file - it doesn't look like a history backup.");
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  document.addEventListener('input', recalc);
+  $('addJob').addEventListener('click', () => { addJobRow(); recalc(); });
+  addJobRow();
+  recalc();
+  $('monthLabel').value = defaultLabel();
+  renderHistory();
+  runSelfTest();
+</script>
