@@ -153,7 +153,7 @@
   }
   .amt-wrap input { padding-left: 1.65rem; }
 
-  input[type="text"], input[type="date"] {
+  input[type="text"], input[type="date"], select {
     width: 100%;
     font: inherit;
     font-size: 1rem;
@@ -260,6 +260,10 @@
     color: var(--ink-soft);
   }
   p.selftest.fail { color: var(--danger); font-weight: 600; }
+
+  .label-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .label-row select { flex: 1 1 0; }
+  #monthSel { flex: 1.5 1 0; }
 
   .save-btn {
     width: 100%;
@@ -449,8 +453,12 @@
 
   <section class="card">
     <h2>Save to history</h2>
-    <p class="hint" id="saveHint">Label this month, then save a snapshot for your records.</p>
-    <input type="text" id="monthLabel" placeholder="e.g. August 2026" aria-label="Month label">
+    <p class="hint" id="saveHint">Pick the month this snapshot covers, then save it for your records.</p>
+    <div class="label-row">
+      <select id="monthSel" aria-label="Month"></select>
+      <select id="yearSel" aria-label="Year"></select>
+    </div>
+    <input type="text" id="monthLabel" placeholder="Custom label (optional)" aria-label="Custom label (optional)">
     <button type="button" class="save-btn" id="saveBtn">Save this month to history</button>
   </section>
 
@@ -685,8 +693,44 @@
     catch (e) { storageOK = false; showToast('History could not be saved on this device (storage full or blocked).'); }
   }
 
-  function defaultLabel() {
-    return new Date().toLocaleString('en-CA', { month: 'long', year: 'numeric' });
+  // ---- Month picker: no typing; defaults to the month after the last save. ----
+  const monthSel = $('monthSel'), yearSel = $('yearSel');
+  for (let i = 0; i < 12; i++) {
+    const o = document.createElement('option');
+    o.value = i;
+    o.textContent = new Date(2026, i, 1).toLocaleString('en-CA', { month: 'long' });
+    monthSel.appendChild(o);
+  }
+  const AUTO_LABEL_RE = new RegExp('^(' + Array.from(monthSel.options).map(o => o.textContent).join('|') + ') \\d{4}$');
+
+  function setYearOptions(centre) {
+    const cy = new Date().getFullYear();
+    const lo = Math.min(centre, cy) - 2, hi = Math.max(centre, cy) + 2;
+    yearSel.innerHTML = '';
+    for (let y = lo; y <= hi; y++) {
+      const o = document.createElement('option');
+      o.value = y;
+      o.textContent = y;
+      yearSel.appendChild(o);
+    }
+  }
+
+  // First use: current month. After a save: the month after the latest saved one.
+  function pickerDefault() {
+    const h = history.find(e => typeof e.month === 'number' && typeof e.year === 'number');
+    if (h) {
+      let m = h.month + 1, y = h.year;
+      if (m > 11) { m = 0; y++; }
+      return { m, y };
+    }
+    const d = new Date();
+    return { m: d.getMonth(), y: d.getFullYear() };
+  }
+
+  function currentLabel() {
+    const custom = $('monthLabel').value.trim();
+    if (custom) return custom;
+    return monthSel.options[monthSel.selectedIndex].textContent + ' ' + yearSel.value;
   }
 
   function todayISO() {
@@ -871,20 +915,29 @@
 
   $('printBtn').addEventListener('click', () => {
     const s = currentSnapshot();
-    const label = $('monthLabel').value.trim() || defaultLabel();
-    printSnapshot(s, label, null);
+    printSnapshot(s, currentLabel(), null);
   });
 
   $('saveBtn').addEventListener('click', () => {
     const s = currentSnapshot();
-    const label = $('monthLabel').value.trim() || defaultLabel();
+    const label = currentLabel();
     const entry = Object.assign(
-      { id: 'h' + Date.now() + Math.random().toString(36).slice(2, 7), label, savedAt: new Date().toISOString() },
+      { id: 'h' + Date.now() + Math.random().toString(36).slice(2, 7), label,
+        month: +monthSel.value, year: +yearSel.value, savedAt: new Date().toISOString() },
       s
     );
     history.unshift(entry);
     persistHistory();
     renderHistory();
+    // Line up the next month so the next visit is ready to go.
+    let m = +monthSel.value + 1, y = +yearSel.value;
+    if (m > 11) { m = 0; y++; }
+    setYearOptions(y);
+    monthSel.value = m;
+    yearSel.value = y;
+    $('monthLabel').value = '';
+    updateSaveBtn();
+    saveDraft();
     showToast('Saved "' + label + '" to history.');
   });
 
@@ -1027,8 +1080,11 @@
     (d.jobs.length ? d.jobs : [{}]).forEach(j => addJobRow(j.name || '', j.amt || ''));
     $('seIncome').value = d.se || '';
     $('taxWithheld').value = d.withheld || '';
-    // Keep a custom label only within the same calendar month; a new month gets a fresh default.
-    $('monthLabel').value = (d.label && d.labelMonth === todayISO().slice(0, 7)) ? d.label : defaultLabel();
+    // Restore a custom label only if it's from this calendar month and isn't just a month-year the pickers already cover.
+    const auto = monthSel.options[monthSel.selectedIndex].textContent + ' ' + yearSel.value;
+    $('monthLabel').value =
+      (d.label && d.labelMonth === todayISO().slice(0, 7) && d.label !== auto && !AUTO_LABEL_RE.test(d.label))
+        ? d.label : '';
     return true;
   }
 
@@ -1049,7 +1105,7 @@
 
   // The save button names exactly what it will save.
   function updateSaveBtn() {
-    const label = $('monthLabel').value.trim() || defaultLabel();
+    const label = currentLabel();
     $('saveBtn').textContent = label.length <= 26 ? 'Save ' + label + ' to history' : 'Save this month to history';
   }
 
@@ -1070,11 +1126,13 @@
 
   document.addEventListener('input', () => { recalc(); updateSaveBtn(); saveDraftSoon(); });
   $('addJob').addEventListener('click', () => { addJobRow(); recalc(); saveDraft(); });
+  [monthSel, yearSel].forEach(s => s.addEventListener('change', () => { updateSaveBtn(); saveDraftSoon(); }));
 
-  if (!loadDraft()) {
-    addJobRow();
-    $('monthLabel').value = defaultLabel();
-  }
+  const start = pickerDefault();
+  setYearOptions(start.y);
+  monthSel.value = start.m;
+  yearSel.value = start.y;
+  if (!loadDraft()) addJobRow();
   recalc();
   updateSaveBtn();
   renderHistory();
