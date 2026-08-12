@@ -271,6 +271,7 @@
   .ghost-btn.danger { color: var(--danger); border-color: var(--danger); }
   .ghost-btn:focus-visible { outline: 2px solid var(--accent); }
   .ghost-btn.small { flex: none; min-height: 36px; font-size: 0.78rem; padding: 0.4rem 0.65rem; margin-top: 0.6rem; }
+  #copyLastBtn { width: 100%; color: var(--accent); }
 
   p.empty { margin: 0; font-size: 0.85rem; color: var(--ink-soft); }
   .count { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ink-soft); }
@@ -383,6 +384,8 @@
     <h1>BC Monthly Tax Remitter<span class="badge">2026</span></h1>
     <p class="sub">Estimate how much to set aside and remit to CRA this month.</p>
   </header>
+
+  <button type="button" class="ghost-btn" id="copyLastBtn" hidden>Use last saved month</button>
 
   <section class="card">
     <h2>Employment income</h2>
@@ -566,7 +569,7 @@
   const $ = id => document.getElementById(id);
   const jobRows = $('jobRows');
 
-  function addJobRow() {
+  function addJobRow(name, amt) {
     const row = document.createElement('div');
     row.className = 'job-row';
     row.innerHTML =
@@ -574,13 +577,21 @@
       '<div class="amt-wrap"><span class="cur">$</span>' +
       '<input type="text" class="amount job-amt" inputmode="decimal" placeholder="0" aria-label="Gross monthly income for this job"></div>' +
       '<button type="button" class="remove" aria-label="Remove this job">&times;</button>';
-    row.querySelector('.remove').addEventListener('click', () => { row.remove(); recalc(); });
+    if (name) row.querySelector('.name').value = name;
+    if (amt !== undefined && amt !== '' && amt !== 0) row.querySelector('.job-amt').value = String(amt);
+    row.querySelector('.remove').addEventListener('click', () => { row.remove(); recalc(); saveDraft(); });
     jobRows.appendChild(row);
   }
 
   function currentSnapshot() {
     let employment = 0;
-    document.querySelectorAll('.job-amt').forEach(i => employment += num(i.value));
+    const jobs = [];
+    document.querySelectorAll('.job-row').forEach(r => {
+      const name = r.querySelector('.name').value.trim();
+      const amt = num(r.querySelector('.job-amt').value);
+      employment += amt;
+      if (name || amt) jobs.push({ name, amt });
+    });
     const se = num($('seIncome').value);
     const withheld = num($('taxWithheld').value);
 
@@ -590,7 +601,7 @@
     const monthlyReq = (a.tax + a.cpp) / 12;
     const remit = Math.max(0, monthlyReq - withheld);
     return {
-      employment, se, withheld, monthly, annual,
+      employment, jobs, se, withheld, monthly, annual,
       taxable: a.taxable, fedTax: a.fedTax, bcTax: a.bcTax,
       tax: a.tax, cpp: a.cpp, monthlyReq, remit
     };
@@ -718,6 +729,15 @@
     $('historyCount').textContent = history.length
       ? ' (' + history.length + (due ? ', ' + due + ' due' : ', all paid') + ')'
       : '';
+
+    const copyLast = $('copyLastBtn');
+    if (history.length) {
+      const lbl = history[0].label.length <= 22 ? history[0].label : 'last saved month';
+      copyLast.textContent = 'Use numbers from “' + lbl + '”';
+      copyLast.hidden = false;
+    } else {
+      copyLast.hidden = true;
+    }
 
     if (!history.length) {
       list.innerHTML = '';
@@ -962,11 +982,86 @@
     reader.readAsText(file);
   });
 
-  document.addEventListener('input', recalc);
-  $('addJob').addEventListener('click', () => { addJobRow(); recalc(); });
-  addJobRow();
+  // ---- Draft: the form remembers itself between visits (same on-device storage). ----
+  const DRAFT_KEY = 'bcTaxRemitterDraft_v1';
+
+  function saveDraft() {
+    if (!storageOK) return;
+    const jobs = [];
+    document.querySelectorAll('.job-row').forEach(r => {
+      jobs.push({ name: r.querySelector('.name').value, amt: r.querySelector('.job-amt').value });
+    });
+    const draft = {
+      jobs,
+      se: $('seIncome').value,
+      withheld: $('taxWithheld').value,
+      label: $('monthLabel').value,
+      labelMonth: todayISO().slice(0, 7)
+    };
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (e) {}
+  }
+
+  let draftTimer = null;
+  function saveDraftSoon() { clearTimeout(draftTimer); draftTimer = setTimeout(saveDraft, 250); }
+
+  // Returns true if a saved draft was restored.
+  function loadDraft() {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch (e) { return false; }
+    if (!d || !Array.isArray(d.jobs)) return false;
+    (d.jobs.length ? d.jobs : [{}]).forEach(j => addJobRow(j.name || '', j.amt || ''));
+    $('seIncome').value = d.se || '';
+    $('taxWithheld').value = d.withheld || '';
+    // Keep a custom label only within the same calendar month; a new month gets a fresh default.
+    $('monthLabel').value = (d.label && d.labelMonth === todayISO().slice(0, 7)) ? d.label : defaultLabel();
+    return true;
+  }
+
+  // One tap fills the whole form from the most recent saved month.
+  $('copyLastBtn').addEventListener('click', () => {
+    const h = history[0];
+    if (!h) return;
+    jobRows.innerHTML = '';
+    const jobs = (h.jobs && h.jobs.length) ? h.jobs : [{ name: '', amt: h.employment || '' }];
+    jobs.forEach(j => addJobRow(j.name || '', j.amt || ''));
+    $('seIncome').value = h.se ? String(h.se) : '';
+    $('taxWithheld').value = h.withheld ? String(h.withheld) : '';
+    recalc();
+    updateSaveBtn();
+    saveDraft();
+    showToast('Filled from “' + h.label + '” — adjust anything that changed.');
+  });
+
+  // The save button names exactly what it will save.
+  function updateSaveBtn() {
+    const label = $('monthLabel').value.trim() || defaultLabel();
+    $('saveBtn').textContent = label.length <= 26 ? 'Save ' + label + ' to history' : 'Save this month to history';
+  }
+
+  // Amounts get thousands separators when leaving a field, and plain digits while editing.
+  document.addEventListener('focusout', (e) => {
+    const t = e.target;
+    if (!t.classList || !t.classList.contains('amount')) return;
+    const n = num(t.value);
+    if (n > 0) t.value = n.toLocaleString('en-CA', { maximumFractionDigits: 2 });
+    else if (t.value.trim() !== '') t.value = '';
+    saveDraftSoon();
+  });
+  document.addEventListener('focusin', (e) => {
+    const t = e.target;
+    if (!t.classList || !t.classList.contains('amount')) return;
+    t.value = t.value.replace(/,/g, '');
+  });
+
+  document.addEventListener('input', () => { recalc(); updateSaveBtn(); saveDraftSoon(); });
+  $('addJob').addEventListener('click', () => { addJobRow(); recalc(); saveDraft(); });
+
+  if (!loadDraft()) {
+    addJobRow();
+    $('monthLabel').value = defaultLabel();
+  }
   recalc();
-  $('monthLabel').value = defaultLabel();
+  updateSaveBtn();
   renderHistory();
   runSelfTest();
 </script>
