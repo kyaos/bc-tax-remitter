@@ -138,7 +138,7 @@
   }
   .amt-wrap input { padding-left: 1.65rem; }
 
-  input[type="text"] {
+  input[type="text"], input[type="date"] {
     width: 100%;
     font: inherit;
     font-size: 1rem;
@@ -300,6 +300,22 @@
   }
   details[open] .chev { transform: rotate(90deg); }
   .hist-remit { flex: 0 0 auto; font-variant-numeric: tabular-nums; color: var(--ink-soft); font-size: 0.85rem; }
+  .chip {
+    flex: 0 0 auto;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 0.08rem 0.5rem;
+    border: 1px solid;
+  }
+  .chip.paid { color: var(--accent); border-color: var(--accent); }
+  .chip.due { color: var(--ink-soft); border-color: var(--field-line); }
+  .paid-controls { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.6rem; flex-wrap: wrap; }
+  .paid-controls input[type="date"] { flex: 1 1 8rem; width: auto; min-height: 40px; padding: 0.4rem 0.6rem; font-size: 0.9rem; }
+  .paid-controls .ghost-btn { flex: 0 0 auto; min-height: 40px; font-size: 0.8rem; padding: 0.4rem 0.7rem; }
+  .paid-note { margin: 0.6rem 0 0; font-size: 0.85rem; color: var(--accent); font-weight: 600; }
   .hist-body { padding-top: 0.4rem; }
   .hist-body table.breakdown { font-size: 0.84rem; }
   .hist-meta { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--ink-soft); }
@@ -647,6 +663,18 @@
     return new Date().toLocaleString('en-CA', { month: 'long', year: 'numeric' });
   }
 
+  function todayISO() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // Format a YYYY-MM-DD date without timezone shifts.
+  function fmtDay(iso) {
+    const p = String(iso).split('-');
+    const d = new Date(+p[0], +p[1] - 1, +p[2]);
+    return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
   function escapeHtml(s) {
     return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
@@ -686,7 +714,10 @@
     const list = $('historyList');
     const empty = $('historyEmpty');
     const actions = $('historyActions');
-    $('historyCount').textContent = history.length ? ' (' + history.length + ')' : '';
+    const due = history.filter(h => !h.paidAt).length;
+    $('historyCount').textContent = history.length
+      ? ' (' + history.length + (due ? ', ' + due + ' due' : ', all paid') + ')'
+      : '';
 
     if (!history.length) {
       list.innerHTML = '';
@@ -699,9 +730,17 @@
 
     list.innerHTML = history.map(h => {
       const dateStr = new Date(h.savedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+      const payHtml = h.paidAt
+        ? '<p class="paid-note">Paid on ' + fmtDay(h.paidAt) + '</p>' +
+          '<button type="button" class="ghost-btn small mark-unpaid" data-id="' + h.id + '">Mark as not paid</button>'
+        : '<div class="paid-controls">' +
+            '<input type="date" class="paid-date" value="' + todayISO() + '" aria-label="Payment date for ' + escapeHtml(h.label) + '">' +
+            '<button type="button" class="ghost-btn mark-paid" data-id="' + h.id + '">Mark as paid</button>' +
+          '</div>';
       return '<details class="hist-item">' +
         '<summary>' +
           '<span class="hist-label"><span class="chev">&rsaquo;</span>' + escapeHtml(h.label) + '</span>' +
+          '<span class="chip ' + (h.paidAt ? 'paid' : 'due') + '">' + (h.paidAt ? 'Paid' : 'Due') + '</span>' +
           '<span class="hist-remit">' + fmt.format(h.remit) + '/mo</span>' +
         '</summary>' +
         '<div class="hist-body">' +
@@ -714,6 +753,8 @@
             '<tr class="total"><td>Suggested remittance</td><td class="num">' + fmt.format(h.remit) + '</td></tr>' +
           '</tbody></table>' +
           '<p class="hist-meta">Saved ' + dateStr + '</p>' +
+          payHtml +
+          '<br>' +
           '<button type="button" class="print-btn small print-entry" data-id="' + h.id + '">Save as PDF</button>' +
           '<button type="button" class="ghost-btn danger small delete-entry" data-id="' + h.id + '">Delete this entry</button>' +
         '</div>' +
@@ -738,7 +779,8 @@
         taxLines + '\n' +
         '  Estimated self-employed CPP: ' + fmt.format(h.cpp) + '\n' +
         '  Tax withheld by employers: ' + fmt.format(h.withheld) + '\n' +
-        '  Suggested CRA remittance: ' + fmt.format(h.remit);
+        '  Suggested CRA remittance: ' + fmt.format(h.remit) + '\n' +
+        '  Payment: ' + (h.paidAt ? 'paid on ' + fmtDay(h.paidAt) : 'not yet paid');
     }).join('\n\n');
   }
 
@@ -761,9 +803,14 @@
   }
 
   function printSnapshot(s, label, dateStr) {
-    const metaLine = dateStr
+    let metaLine = dateStr
       ? 'Saved ' + dateStr
       : 'Printed ' + new Date().toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (typeof s.paidAt === 'string' && s.paidAt) {
+      metaLine += ' &middot; Paid on ' + fmtDay(s.paidAt);
+    } else if (dateStr) {
+      metaLine += ' &middot; Not yet paid';
+    }
     let taxRows;
     if (typeof s.fedTax === 'number' && typeof s.bcTax === 'number') {
       taxRows = '<tr><td>Federal income tax</td><td class="num">' + fmt.format(s.fedTax) + '</td></tr>' +
@@ -807,6 +854,27 @@
   });
 
   $('historyList').addEventListener('click', (e) => {
+    const paidBtn = e.target.closest('.mark-paid');
+    if (paidBtn) {
+      const h = history.find(x => x.id === paidBtn.dataset.id);
+      if (!h) return;
+      const input = paidBtn.parentElement.querySelector('.paid-date');
+      h.paidAt = (input && input.value) ? input.value : todayISO();
+      persistHistory();
+      renderHistory();
+      showToast('Marked "' + h.label + '" as paid on ' + fmtDay(h.paidAt) + '.');
+      return;
+    }
+    const unpaidBtn = e.target.closest('.mark-unpaid');
+    if (unpaidBtn) {
+      const h = history.find(x => x.id === unpaidBtn.dataset.id);
+      if (!h) return;
+      delete h.paidAt;
+      persistHistory();
+      renderHistory();
+      showToast('Marked "' + h.label + '" as not paid.');
+      return;
+    }
     const printBtn = e.target.closest('.print-entry');
     if (printBtn) {
       const h = history.find(x => x.id === printBtn.dataset.id);
