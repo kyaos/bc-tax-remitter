@@ -1,0 +1,12 @@
+{
+  "name": "BC Monthly Tax Remitter",
+  "short_name": "Tax Remitter",
+  "description": "Estimate monthly CRA remittances - 2026 BC/federal tax and self-employed CPP.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f4f6f4",
+  "theme_color": "#1f6b4e",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}
